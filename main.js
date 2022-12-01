@@ -1,51 +1,152 @@
-const juegoCanvas = document.getElementById("juegoCanvas");
+const COLUMNAS = 30
+    const FILAS = 25
+    const LADO = 10
+    const ANCHO_CANVAS = COLUMNAS * LADO
+    const ALTO_CANVAS = FILAS * LADO
 
-const ctx = juegoCanvas.getContext("2d");
+    // variables de escenario
+    let serpiente
+    let comida
 
-const DIRECCIONES = {
-    ARRIBA: 1,
-    ABAJO: 2,
-    IZQUIERDA: 3,
-    DERECHA: 4
-};
+    // variables de control
+    let arriba
+    let derecha
+    let izquierda
+    let abajo
 
-let direccion = DIRECCIONES.DERECHA;
-let cabezaPosX = 10, cabezaPosY = 10;
+    // variables de entorno html
+    let canvas
 
-let culebra = [
-    { posX: 10, posY: 10 },
-    { posX: 20, posY: 10 },
-    { posX: 30, posY: 10 },
-    { posX: 40, posY: 10 },
-]
-
-function dibujarCulebra(x, y) {
-for (let unidadDeCulebra of culebra) {
-    ctx.beginPath()
-    ctx.rect(unidadDeCulebra.posX, unidadDeCulebra.posY, 10, 10)
-    ctx.stroke()
+    function setup() {
+      frameRate(10)
+      canvas = createCanvas(ANCHO_CANVAS, ALTO_CANVAS)
+      windowResized()
+      serpiente = new Serpiente()
+      posicionarComida()
+      arriba = createVector(0, -1)
+      abajo = createVector(0, 1)
+      derecha = createVector(1, 0)
+      izquierda = createVector(-1, 0)
     }
-}; 
 
-function ajustarPosicion() {
-    if (direccion === DIRECCIONES.DERECHA) posX += 10;
-    else if (direccion === DIRECCIONES.IZQUIERDA) posX -= 10;
-    else if (direccion === DIRECCIONES.ABAJO) posY += 10;
-    else if (direccion === DIRECCIONES.ARRIBA) posY -= 10;
-    else throw new Error("dirección tiene un valor invalido asignado osea sos boludo o te haces");
-}
+    function windowResized() {
+      let escala = windowWidth / width
+      if (escala >= 1) {
+        return
+      }
+      canvas.style("width", width * escala + "px")
+      canvas.style("height", height * escala + "px")
+    }
 
-function limpiarCanvas() {
-    ctx.clearRect(0, 0, juegoCanvas.width, juegoCanvas.height);
-}
+    function draw() {
+      background("green")
+      serpiente.dibujar()
+      fill("crimson")
+      rect(comida.x * LADO, comida.y * LADO, LADO, LADO)
+      if (serpiente.posicion.dist(comida) == 0) {
+        serpiente.tamaño++
+        posicionarComida()
+      }
+    }
 
-document.addEventListener('keyup', (e) => {
-    if (e.code === "ArrowUp")       direccion = DIRECCIONES.ARRIBA;
-    else if (e.code === "ArrowDown")       direccion = DIRECCIONES.ABAJO;
-    else if (e.code === "ArrowLeft")       direccion = DIRECCIONES.IZQUIERDA;
-    else if (e.code === "ArrowRight")       direccion = DIRECCIONES.DERECHA;
-    else return;
+    function keyPressed() {
+      if (!isLooping()) {
+        juegoNuevo()
+      }
+      switch (keyCode) {
+        case UP_ARROW:
+          if (serpiente.cola.length && serpiente.aceleracion == abajo) {
+            break
+          }
+          serpiente.aceleracion = arriba
+          break;
+        case RIGHT_ARROW:
+          if (serpiente.cola.length && serpiente.aceleracion == izquierda) {
+            break
+          }
+          serpiente.aceleracion = derecha
+          break;
+        case DOWN_ARROW:
+          if (serpiente.cola.length && serpiente.aceleracion == arriba) {
+            break
+          }
+          serpiente.aceleracion = abajo
+          break;
+        case LEFT_ARROW:
+          if (serpiente.cola.length && serpiente.aceleracion == derecha) {
+            break
+          }
+          serpiente.aceleracion = izquierda
+          break;
+        default:
+          break;
+      }
+    }
 
-    limpiarCanvas();
-    ajustarPosicion();
-    dibujarCulebra(posX, posY)});
+    function posicionarComida() {
+      comida = createVector(
+        int(random(COLUMNAS)),
+        int(random(FILAS))
+      )
+    }
+
+    function juegoNuevo() {
+      serpiente = new Serpiente()
+      loop()
+    }
+
+    function juegoTerminado() {
+      if (serpiente.sistemaDeChoques()) {
+        textAlign(CENTER, CENTER)
+        textSize(50)
+        text("RIP", width / 2, height / 2)
+        noLoop()
+      }
+    }
+
+    function Serpiente() {
+      this.posicion = createVector(
+        COLUMNAS / 2,
+        FILAS / 2
+      )
+      this.aceleracion = createVector()
+      this.cola = []
+      this.tamaño = 0
+      this.sistemaDeChoques = function() {
+        if (this.posicion.x < 0 || this.posicion.y < 0) {
+          return true
+        }
+        if (this.posicion.x >= COLUMNAS || this.posicion.y >= FILAS) {
+          return true
+        }
+        for (const c of this.cola) {
+          if (this.posicion.equals(c)) {
+            return true
+          }
+        }
+        return false
+      }
+      this.dibujar = function() {
+        fill("white")
+        rect(
+          constrain(this.posicion.x, 0, COLUMNAS - 1) * LADO,
+          constrain(this.posicion.y, 0, FILAS - 1) * LADO,
+          LADO,
+          LADO
+        )
+        for (const c of this.cola) {
+          rect(
+            constrain(c.x, 0, COLUMNAS - 1) * LADO,
+            constrain(c.y, 0, FILAS - 1) * LADO,
+            LADO,
+            LADO
+          )
+        }
+        juegoTerminado()
+        this.cola.push(this.posicion.copy())
+        if (this.cola.length > this.tamaño) {
+          this.cola.splice(0, 1)
+        }
+        this.posicion.add(this.aceleracion)
+      }
+    }
