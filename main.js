@@ -1,152 +1,223 @@
-const COLUMNAS = 30
-    const FILAS = 25
-    const LADO = 10
-    const ANCHO_CANVAS = COLUMNAS * LADO
-    const ALTO_CANVAS = FILAS * LADO
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-    // variables de escenario
-    let serpiente
-    let comida
+class SnakePart {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
 
-    // variables de control
-    let arriba
-    let derecha
-    let izquierda
-    let abajo
+let speed = 7;
 
-    // variables de entorno html
-    let canvas
+let tileCount = 20;
+let tileSize = canvas.width / tileCount - 2;
 
-    function setup() {
-      frameRate(10)
-      canvas = createCanvas(ANCHO_CANVAS, ALTO_CANVAS)
-      windowResized()
-      serpiente = new Serpiente()
-      posicionarComida()
-      arriba = createVector(0, -1)
-      abajo = createVector(0, 1)
-      derecha = createVector(1, 0)
-      izquierda = createVector(-1, 0)
+let headX = 10;
+let headY = 10;
+const snakeParts = [];
+let tailLength = 2;
+
+let appleX = 5;
+let appleY = 5;
+
+let inputsXVelocity = 0;
+let inputsYVelocity = 0;
+
+let xVelocity = 0;
+let yVelocity = 0;
+
+let score = 0;
+
+const reggae = new Audio("Reggae Dub Instrumental.mp3");
+
+const gulpSound = new Audio("gulp.mp3");
+
+const sad = new Audio("");
+
+
+
+//game loop
+function drawGame() {
+  xVelocity = inputsXVelocity;
+  yVelocity = inputsYVelocity;
+
+  changeSnakePosition();
+  let result = isGameOver();
+  if (result) {
+    return;
+  }
+
+  clearScreen();
+
+  checkAppleCollision();
+  drawApple();
+  drawSnake();
+
+  drawScore();
+
+  if (score > 5) {
+    speed = 9;
+  }
+  if (score > 10) {
+    speed = 11;
+  }
+
+  setTimeout(drawGame, 1000 / speed);
+}
+
+function isGameOver() {
+  let gameOver = false;
+
+
+  if (yVelocity === 0 && xVelocity === 0) {
+    return false;
+  }
+
+  //walls
+  if (headX < 0) {
+    gameOver = true;
+  } else if (headX === tileCount) {
+    gameOver = true;
+  } else if (headY < 0) {
+    gameOver = true;
+  } else if (headY === tileCount) {
+    gameOver = true;
+  }
+
+  for (let i = 0; i < snakeParts.length; i++) {
+    let part = snakeParts[i];
+    if (part.x === headX && part.y === headY) {
+      gameOver = true;
+      break;
     }
+  }
 
-    function windowResized() {
-      let escala = windowWidth / width
-      if (escala >= 1) {
-        return
+  
+
+  if (gameOver) {
+    ctx.fillStyle = "white";
+    ctx.font = "50px Verdana";
+
+    if (gameOver) {
+      ctx.fillStyle = "white";
+      ctx.font = "50px Verdana";
+ 
+      document.addEventListener("keydown", restartButton);
+
+      function restartButton(event){
+      window.location.reload(true);
       }
-      canvas.style("width", width * escala + "px")
-      canvas.style("height", height * escala + "px")
+
+      
+
+
+      var gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      gradient.addColorStop("0", " magenta");
+      gradient.addColorStop("0.5", "blue");
+      gradient.addColorStop("1.0", "red");
+      // Fill with gradient
+      ctx.fillStyle = gradient;
+
+      ctx.fillText("RIP", canvas.width / 2.5, canvas.height / 2);
     }
 
-    function draw() {
-      background("green")
-      serpiente.dibujar()
-      fill("crimson")
-      rect(comida.x * LADO, comida.y * LADO, LADO, LADO)
-      if (serpiente.posicion.dist(comida) == 0) {
-        serpiente.tamaño++
-        posicionarComida()
-      }
-    }
+    ctx.fillText("RIP", canvas.width / 2.5, canvas.height / 2);
+  }
 
-    function keyPressed() {
-      if (!isLooping()) {
-        juegoNuevo()
-      }
-      switch (keyCode) {
-        case UP_ARROW:
-          if (serpiente.cola.length && serpiente.aceleracion == abajo) {
-            break
-          }
-          serpiente.aceleracion = arriba
-          break;
-        case RIGHT_ARROW:
-          if (serpiente.cola.length && serpiente.aceleracion == izquierda) {
-            break
-          }
-          serpiente.aceleracion = derecha
-          break;
-        case DOWN_ARROW:
-          if (serpiente.cola.length && serpiente.aceleracion == arriba) {
-            break
-          }
-          serpiente.aceleracion = abajo
-          break;
-        case LEFT_ARROW:
-          if (serpiente.cola.length && serpiente.aceleracion == derecha) {
-            break
-          }
-          serpiente.aceleracion = izquierda
-          break;
-        default:
-          break;
-      }
-    }
+  
 
-    function posicionarComida() {
-      comida = createVector(
-        int(random(COLUMNAS)),
-        int(random(FILAS))
-      )
-    }
+  return gameOver;
+}
 
-    function juegoNuevo() {
-      serpiente = new Serpiente()
-      loop()
-    }
 
-    function juegoTerminado() {
-      if (serpiente.sistemaDeChoques()) {
-        textAlign(CENTER, CENTER)
-        textSize(50)
-        text("RIP", width / 2, height / 2)
-        noLoop()
-      }
-    }
+function drawScore() {
+  ctx.fillStyle = "white";
+  ctx.font = "24px Verdana";
+  ctx.fillText("Fasos Combustionados: " + score, canvas.width - 350, 23);
 
-    function Serpiente() {
-      this.posicion = createVector(
-        COLUMNAS / 2,
-        FILAS / 2
-      )
-      this.aceleracion = createVector()
-      this.cola = []
-      this.tamaño = 0
-      this.sistemaDeChoques = function() {
-        if (this.posicion.x < 0 || this.posicion.y < 0) {
-          return true
-        }
-        if (this.posicion.x >= COLUMNAS || this.posicion.y >= FILAS) {
-          return true
-        }
-        for (const c of this.cola) {
-          if (this.posicion.equals(c)) {
-            return true
-          }
-        }
-        return false
-      }
-      this.dibujar = function() {
-        fill("white")
-        rect(
-          constrain(this.posicion.x, 0, COLUMNAS - 1) * LADO,
-          constrain(this.posicion.y, 0, FILAS - 1) * LADO,
-          LADO,
-          LADO
-        )
-        for (const c of this.cola) {
-          rect(
-            constrain(c.x, 0, COLUMNAS - 1) * LADO,
-            constrain(c.y, 0, FILAS - 1) * LADO,
-            LADO,
-            LADO
-          )
-        }
-        juegoTerminado()
-        this.cola.push(this.posicion.copy())
-        if (this.cola.length > this.tamaño) {
-          this.cola.splice(0, 1)
-        }
-        this.posicion.add(this.aceleracion)
-      }
-    }
+}
+
+function clearScreen() {
+  ctx.fillStyle = "darkgreen";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawSnake() {
+  ctx.fillStyle = "orange";
+  for (let i = 0; i < snakeParts.length; i++) {
+    let part = snakeParts[i];
+    ctx.fillRect(part.x * tileCount, part.y * tileCount, tileSize, tileSize);
+  }
+
+  snakeParts.push(new SnakePart(headX, headY)); //put an item at the end of the list next to the head
+  while (snakeParts.length > tailLength) {
+    snakeParts.shift(); // remove the furthet item from the snake parts if have more than our tail size.
+  }
+
+  ctx.fillStyle = "orange";
+  ctx.fillRect(headX * tileCount, headY * tileCount, tileSize, tileSize);
+}
+
+function changeSnakePosition() {
+  headX = headX + xVelocity;
+  headY = headY + yVelocity;
+}
+
+function drawApple() {
+  ctx.fillStyle = "green";
+  ctx.fillRect(appleX * tileCount, appleY * tileCount, tileSize, tileSize);
+}
+
+function checkAppleCollision() {
+  if (appleX === headX && appleY == headY) {
+    appleX = Math.floor(Math.random() * tileCount);
+    appleY = Math.floor(Math.random() * tileCount);
+    tailLength++;
+    score++;
+    gulpSound.play();
+  }
+}
+
+
+
+
+document.body.addEventListener("keydown", keyDown);
+
+function keyDown(event) {
+  //up
+  if (event.keyCode == 38 || event.keyCode == 87) {
+    //87 is w
+    if (inputsYVelocity == 1) return;
+    inputsYVelocity = -1;
+    inputsXVelocity = 0;
+  }
+
+  //down
+  if (event.keyCode == 40 || event.keyCode == 83) {
+    // 83 is s
+    if (inputsYVelocity == -1) return;
+    inputsYVelocity = 1;
+    inputsXVelocity = 0;
+  }
+
+  //left
+  if (event.keyCode == 37 || event.keyCode == 65) {
+    // 65 is a
+    if (inputsXVelocity == 1) return;
+    inputsYVelocity = 0;
+    inputsXVelocity = -1;
+  }
+
+  //right
+  if (event.keyCode == 39 || event.keyCode == 68) {
+    //68 is d
+    if (inputsXVelocity == -1) return;
+    inputsYVelocity = 0;
+    inputsXVelocity = 1;
+  }
+}
+
+
+
+drawGame();
